@@ -1,0 +1,23 @@
+import { Router } from "express";
+import {
+  listar,
+  buscarPorId,
+  criar,
+  atualizar,
+  excluir,
+} from "../controllers/funcionarioControlador";
+import { autenticacao } from "../middlewares/autenticacao";
+import { apenasAdmin, adminOuProprio } from "../middlewares/autorizacao";
+
+const rotas = Router();
+
+// Todas as rotas exigem login
+rotas.use(autenticacao);
+
+rotas.get("/", apenasAdmin, listar);
+rotas.get("/:id", adminOuProprio, buscarPorId);
+rotas.post("/", apenasAdmin, criar);
+rotas.put("/:id", adminOuProprio, atualizar);
+rotas.delete("/:id", apenasAdmin, excluir);
+
+export default rotas;

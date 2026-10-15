@@ -1,0 +1,116 @@
+import { Request, Response } from "express";
+import bcrypt from "bcrypt";
+import { prisma } from "../prisma";
+
+const camposPublicos = {
+  id: true,
+  nome: true,
+  email: true,
+  papel: true,
+  criadoEm: true,
+};
+
+export async function listar(req: Request, res: Response) {
+  try {
+    const funcionarios = await prisma.funcionario.findMany({ select: camposPublicos });
+    return res.json(funcionarios);
+  } catch {
+    return res.status(500).json({ erro: "Erro ao listar funcionários" });
+  }
+}
+
+export async function buscarPorId(req: Request, res: Response) {
+  try {
+    const funcionario = await prisma.funcionario.findUnique({
+      where: { id: req.params.id },
+      select: camposPublicos,
+    });
+
+    if (!funcionario) {
+      return res.status(404).json({ erro: "Funcionário não encontrado" });
+    }
+    return res.json(funcionario);
+  } catch {
+    return res.status(500).json({ erro: "Erro ao buscar funcionário" });
+  }
+}
+
+export async function criar(req: Request, res: Response) {
+  try {
+    const { nome, email, senha, papel } = req.body;
+
+    if (!nome || !email || !senha) {
+      return res.status(400).json({ erro: "nome, email e senha são obrigatórios" });
+    }
+
+    const jaExiste = await prisma.funcionario.findUnique({ where: { email } });
+    if (jaExiste) {
+      return res.status(409).json({ erro: "E-mail já cadastrado" });
+    }
+
+    const senhaCriptografada = await bcrypt.hash(senha, 10);
+
+    const funcionario = await prisma.funcionario.create({
+      data: { nome, email, senha: senhaCriptografada, papel },
+      select: camposPublicos,
+    });
+
+    return res.status(201).json(funcionario);
+  } catch {
+    return res.status(500).json({ erro: "Erro ao criar funcionário" });
+  }
+}
+
+export async function atualizar(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+    const { nome, email, senha, papel } = req.body;
+    const ehAdmin = req.usuario?.papel === "ADMIN";
+
+    const existente = await prisma.funcionario.findUnique({ where: { id } });
+    if (!existente) {
+      return res.status(404).json({ erro: "Funcionário não encontrado" });
+    }
+
+    if (email && email !== existente.email) {
+      const emailEmUso = await prisma.funcionario.findUnique({ where: { email } });
+      if (emailEmUso) {
+        return res.status(409).json({ erro: "E-mail já cadastrado" });
+      }
+    }
+
+    const dados: Record<string, unknown> = {};
+    if (nome) dados.nome = nome;
+    if (email) dados.email = email;
+    if (senha) dados.senha = await bcrypt.hash(senha, 10);
+
+    // Só admin pode alterar o papel (evita que um funcionário se promova a admin)
+    if (papel && ehAdmin) dados.papel = papel;
+
+    const funcionario = await prisma.funcionario.update({
+      where: { id },
+      data: dados,
+      select: camposPublicos,
+    });
+
+    return res.json(funcionario);
+  } catch {
+    return res.status(500).json({ erro: "Erro ao atualizar funcionário" });
+  }
+}
+
+export async function excluir(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const existente = await prisma.funcionario.findUnique({ where: { id } });
+    if (!existente) {
+      return res.status(404).json({ erro: "Funcionário não encontrado" });
+    }
+
+    await prisma.funcionario.delete({ where: { id } });
+    return res.status(204).send();
+  } catch {
+    return res.status(500).json({ erro: "Erro ao excluir funcionário" });
+  }
+}

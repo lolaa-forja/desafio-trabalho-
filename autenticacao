@@ -1,0 +1,23 @@
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+
+export function autenticacao(req: Request, res: Response, next: NextFunction) {
+  const cabecalho = req.headers.authorization;
+
+  if (!cabecalho || !cabecalho.startsWith("Bearer ")) {
+    return res.status(401).json({ erro: "Token não informado" });
+  }
+
+  const token = cabecalho.split(" ")[1];
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as {
+      id: string;
+      papel: "ADMIN" | "FUNCIONARIO";
+    };
+    req.usuario = { id: payload.id, papel: payload.papel };
+    return next();
+  } catch {
+    return res.status(401).json({ erro: "Token inválido ou expirado" });
+  }
+}

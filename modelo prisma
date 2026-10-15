@@ -1,0 +1,13 @@
+enum Papel {
+  ADMIN
+  FUNCIONARIO
+}
+
+model Funcionario {
+  id        String   @id @default(uuid())
+  nome      String
+  email     String   @unique
+  senha     String
+  papel     Papel    @default(FUNCIONARIO)
+  criadoEm  DateTime @default(now())
+}

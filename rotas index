@@ -1,0 +1,8 @@
+import { Router } from "express";
+import funcionarioRotas from "./funcionarioRotas";
+
+const rotas = Router();
+
+rotas.use("/funcionarios", funcionarioRotas);
+
+export default rotas;
